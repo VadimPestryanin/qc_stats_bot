@@ -1,0 +1,7 @@
+.vs/
+nlog.txt
+bin/
+obj/
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
