@@ -7,6 +7,7 @@ using Autofac;
 using Microsoft.Extensions.Options;
 using QCStats;
 using QCStats.Model.QC;
+using stats_eba_bot.Cache;
 using Telegram.Bot;
 using Telegram.Bot.Args;
 
@@ -17,9 +18,12 @@ namespace stats_eba_bot.BotWrapper
         //private readonly AppSettings _appSettings;
         private readonly QCStatsAPI _api;
         private TelegramBotClient _botClient;
-        public TelegramBotService( QCStatsAPI api)
+        private readonly SqlLiteCacheService _cacheService;
+
+        public TelegramBotService( QCStatsAPI api, SqlLiteCacheService cacheService)
         {
             _api = api;
+            _cacheService = cacheService;
         }
 
         public async void SetupBot()
@@ -48,6 +52,18 @@ namespace stats_eba_bot.BotWrapper
                     int rating = await CheckPlayerStats(name);
                     if (rating > 0)
                     {
+                        var cached = _cacheService.GetFromCache(name);
+                        if (!string.IsNullOrEmpty(cached))
+                        {
+                            await _botClient.SendTextMessageAsync(
+                                chatId: e.Message.Chat,
+                                text: $"{name} duel rating in cache is: {cached}"
+                            );
+                        }
+                        else
+                        {
+                            _cacheService.SaveInCache(name,rating.ToString());
+                        }
                         await _botClient.SendTextMessageAsync(
                             chatId: e.Message.Chat,
                             text: $"{name} duel rating is: {rating}"
