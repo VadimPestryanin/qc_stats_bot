@@ -1,36 +1,58 @@
-﻿using System;
+﻿using stats_eba_bot.DataContext;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
-using EasyCaching.Core;
 
 namespace stats_eba_bot.Cache
 {
     public class SqlLiteCacheService
     {
-        private readonly IEasyCachingProviderFactory _factory;
 
-        private string _cacheProvider => "QCSqlLite";
-        public SqlLiteCacheService(IEasyCachingProviderFactory factory)
+        private readonly PlayersContext _context;
+
+        public SqlLiteCacheService(PlayersContext context)
         {
-            _factory = factory;
+            _context = context;
         }
 
-        public void SaveInCache(string key, string value)
+        public void SaveInCache(string key, int value)
         {
-            var provider = _factory.GetCachingProvider(_cacheProvider);    
-            provider.Set(key,value, TimeSpan.FromDays(60));
-        }
 
-        public string GetFromCache(string key)
-        {
-            var provider = _factory.GetCachingProvider(_cacheProvider);    
-            var value = provider.Get<string>(key);
-            if (value.HasValue)
+            var existing = GetFromCache(key);
+            if (existing == null)
             {
-                return value.Value;
+                _context.PlayerStatistic.Add(new PlayerStatistic()
+                {
+                    PlayerName = key,
+                    DuelRating = value
+                });
+            }
+            else
+            {
+                existing.DuelRating = value;
             }
 
-            return string.Empty;
+            _context.SaveChanges();
+
+
+        }
+
+        public PlayerStatistic GetFromCache(string key)
+        {
+
+            var stat = _context.PlayerStatistic.FirstOrDefault(p => p.PlayerName == key);
+            if (stat != null)
+            {
+                return stat;
+            }
+
+            return null;
+        }
+
+        public List<PlayerStatistic> ListAllRecords()
+        {
+            return _context.PlayerStatistic.OrderByDescending(a=>a.DuelRating).ToList();
         }
     }
 }

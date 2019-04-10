@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Autofac;
 using Microsoft.Extensions.Options;
 using QCStats;
 using QCStats.Model.QC;
+using stats_eba_bot.ApiWrapper;
 using stats_eba_bot.Cache;
 using Telegram.Bot;
 using Telegram.Bot.Args;
@@ -16,14 +17,15 @@ namespace stats_eba_bot.BotWrapper
     public class TelegramBotService
     {
         //private readonly AppSettings _appSettings;
-        private readonly QCStatsAPI _api;
+
+        private readonly QCApiService _qCApiService;
         private TelegramBotClient _botClient;
         private readonly SqlLiteCacheService _cacheService;
 
-        public TelegramBotService( QCStatsAPI api, SqlLiteCacheService cacheService)
+        public TelegramBotService(SqlLiteCacheService cacheService,QCApiService qCApiService)
         {
-            _api = api;
             _cacheService = cacheService;
+            _qCApiService = qCApiService;
         }
 
         public async void SetupBot()
@@ -43,85 +45,67 @@ namespace stats_eba_bot.BotWrapper
         {
             if (e.Message.Text != null)
             {
-                //Console.WriteLine($"Received a text message in chat {e.Message.Chat.Id}.");
-
                 if (e.Message.Text.StartsWith("/stats"))
                 {
-
-                    var name = e.Message.Text.Replace("/stats ", "");
-                    int rating = await CheckPlayerStats(name);
-                    if (rating > 0)
+                    var name = e.Message.Text.Replace("/stats", "");
+                    name = name.TrimStart();
+                    if (!string.IsNullOrEmpty(name))
                     {
-                        var cached = _cacheService.GetFromCache(name);
-                        if (!string.IsNullOrEmpty(cached))
+                        int rating = await _qCApiService.GetPlayerRating(name);
+                        if (rating > 0)
                         {
+                            var cached = _cacheService.GetFromCache(name);
+                            if (cached != null)
+                            {
+                                await _botClient.SendTextMessageAsync(
+                                    chatId: e.Message.Chat,
+                                    text: $"{name} duel rating in cache is: {cached.DuelRating}"
+                                );
+                            }
+                            else
+                            {
+                                _cacheService.SaveInCache(name,rating);
+                            }
                             await _botClient.SendTextMessageAsync(
                                 chatId: e.Message.Chat,
-                                text: $"{name} duel rating in cache is: {cached}"
+                                text: $"{name} duel rating is: {rating}"
                             );
                         }
                         else
                         {
-                            _cacheService.SaveInCache(name,rating.ToString());
+                            await _botClient.SendTextMessageAsync(
+                                chatId: e.Message.Chat,
+                                text: $"{name} was not found in duels"
+                            );
                         }
-                        await _botClient.SendTextMessageAsync(
-                            chatId: e.Message.Chat,
-                            text: $"{name} duel rating is: {rating}"
-                        );
                     }
-                    else
+                    else//TODO split
                     {
+                        var all = _cacheService.ListAllRecords();
+
+                        string allRecords = String.Join("\n",
+                            all.Select(a => $"{a.PlayerName} duel rating in cache {a.DuelRating}"));
+
                         await _botClient.SendTextMessageAsync(
                             chatId: e.Message.Chat,
-                            text: $"{name} was not found in duels"
+                            text: allRecords
                         );
                     }
+                    
                 }
 
             }
-            else
-            {
-                await _botClient.SendTextMessageAsync(
-                    chatId: e.Message.Chat,
-                    text: "You said:\n" + e.Message.Text
-                );
-            }
-
-
-
+            //else
+            //{
+            //    await _botClient.SendTextMessageAsync(
+            //        chatId: e.Message.Chat,
+            //        text: "You said:\n" + e.Message.Text
+            //    );
+            //}
         }
-        private async Task<int> CheckPlayerStats(string playerName)
-        {
 
-            PlayerData player = await _api.Players.GetPlayerStatsAsync(playerName);
-
-            if (!string.IsNullOrWhiteSpace(player?.Name))
-            {
-                PlayerProfileStats stats = player.ProfileStats;
-                TimeSpan totalTimePlayed = stats.TimePlayed;
-
-                Console.WriteLine();
-                Console.WriteLine("QC Stats", ConsoleColor.DarkRed);
-                Console.WriteLine($" ({playerName})", ConsoleColor.Cyan);
-                Console.WriteLine();
-                Console.WriteLine($"{@"KDR",-16}", stats.Kdr, stats.OverallStats);
-                Console.WriteLine($"{@"Accuracy",-16} {stats.Accuracy:P2}");
-                Console.WriteLine($"{@"Win Rate",-16} {stats.WinRate:P2}");
-                Console.WriteLine($"{@"Ranked Win Rate",-16} {stats.RankedWinRate:P2}");
-                Console.WriteLine($"{@"Time Played",-16} {totalTimePlayed.Days * 24 + totalTimePlayed.Hours}h {totalTimePlayed.Minutes}m {totalTimePlayed.Seconds}s");
-                Console.WriteLine("\n");
-
-                PlayerRating duelRating = null;
-                player.Ratings.TryGetValue(QCStats.Enums.RankedGameMode.Duel, out duelRating);
-                if (duelRating != null)
-                {
-                    return duelRating.Rating;
-                }
-
-            }
-
-            return 0;
-        }
+       
+       
     }
 }
 
