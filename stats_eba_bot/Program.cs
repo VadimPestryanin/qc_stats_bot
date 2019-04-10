@@ -16,7 +16,7 @@ namespace stats_eba_bot
 
         //Bot settings
         static ITelegramBotClient _botClient;
-        private const string _apiKey = "763383540:AAH6FLP2jB1r6pj8nIQwsivAG7rvMbOhFwE";
+        private const string _apiKey = "<Your_Api_Key>";
 
         //Container Settings
         private static IContainer _container { get; set; }
