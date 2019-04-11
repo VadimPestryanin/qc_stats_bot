@@ -9,7 +9,7 @@ using stats_eba_bot.DataContext;
 namespace stats_eba_bot.Migrations
 {
     [DbContext(typeof(PlayersContext))]
-    [Migration("20190410194924_Initial")]
+    [Migration("20190411172154_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,8 @@ namespace stats_eba_bot.Migrations
                         .ValueGeneratedOnAdd();
 
                     b.Property<int>("DuelRating");
+
+                    b.Property<DateTime>("LastUpdatedDate");
 
                     b.Property<string>("PlayerName");
 

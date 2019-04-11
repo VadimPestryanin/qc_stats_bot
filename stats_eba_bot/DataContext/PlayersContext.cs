@@ -22,6 +22,8 @@ namespace stats_eba_bot.DataContext
         public string PlayerName { get; set; }
         public int DuelRating { get; set; }
 
+        public DateTime LastUpdatedDate { get; set; }
+
         public PlayerStatistic()
         {
             this.Id = Guid.NewGuid();

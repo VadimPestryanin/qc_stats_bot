@@ -23,6 +23,8 @@ namespace stats_eba_bot.Migrations
 
                     b.Property<int>("DuelRating");
 
+                    b.Property<DateTime>("LastUpdatedDate");
+
                     b.Property<string>("PlayerName");
 
                     b.HasKey("Id");

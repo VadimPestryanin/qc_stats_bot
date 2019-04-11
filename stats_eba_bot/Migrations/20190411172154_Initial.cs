@@ -13,7 +13,8 @@ namespace stats_eba_bot.Migrations
                 {
                     Id = table.Column<Guid>(nullable: false),
                     PlayerName = table.Column<string>(nullable: true),
-                    DuelRating = table.Column<int>(nullable: false)
+                    DuelRating = table.Column<int>(nullable: false),
+                    LastUpdatedDate = table.Column<DateTime>(nullable: false)
                 },
                 constraints: table =>
                 {

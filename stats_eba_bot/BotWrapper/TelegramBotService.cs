@@ -9,11 +9,22 @@ using QCStats;
 using QCStats.Model.QC;
 using stats_eba_bot.ApiWrapper;
 using stats_eba_bot.Cache;
+using stats_eba_bot.DataContext;
 using Telegram.Bot;
 using Telegram.Bot.Args;
+using stats_eba_bot.Helpers;
 
 namespace stats_eba_bot.BotWrapper
 {
+    public enum CommandCode : int
+    {
+        AddPlayer,
+        UpdateCache,
+        ListPlayers,
+        RemovePlayer,
+        Unknown
+    }
+
     public class TelegramBotService
     {
         //private readonly AppSettings _appSettings;
@@ -38,6 +49,7 @@ namespace stats_eba_bot.BotWrapper
 
             _botClient.OnMessage += OnBotMessage;
             _botClient.StartReceiving();
+          
             Thread.Sleep(Int32.MaxValue);
         }
 
@@ -45,9 +57,19 @@ namespace stats_eba_bot.BotWrapper
         {
             if (e.Message.Text != null)
             {
-                if (e.Message.Text.StartsWith("/stats"))
+                var commandCode = ParseCommand(e.Message.Text);
+                
+                if (commandCode == CommandCode.ListPlayers)
                 {
-                    var name = e.Message.Text.Replace("/stats", "");
+                    await ListAllPlayers(e); //reply to same chat
+                }
+                else if (commandCode == CommandCode.UpdateCache)
+                {
+                    await UpdatePlayersCache(e);
+                }
+                else if (commandCode == CommandCode.AddPlayer)
+                {
+                    var name = e.Message.Text.Replace("/addplayer", "");
                     name = name.TrimStart();
                     if (!string.IsNullOrEmpty(name))
                     {
@@ -55,21 +77,11 @@ namespace stats_eba_bot.BotWrapper
                         if (rating > 0)
                         {
                             var cached = _cacheService.GetFromCache(name);
-                            if (cached != null)
-                            {
-                                await _botClient.SendTextMessageAsync(
-                                    chatId: e.Message.Chat,
-                                    text: $"{name} duel rating in cache is: {cached.DuelRating}"
-                                );
-                            }
-                            else
+                            if (cached == null)
                             {
                                 _cacheService.SaveInCache(name,rating);
                             }
-                            await _botClient.SendTextMessageAsync(
-                                chatId: e.Message.Chat,
-                                text: $"{name} duel rating is: {rating}"
-                            );
+                            await ListAllPlayers(e); //reply to same chat
                         }
                         else
                         {
@@ -79,33 +91,106 @@ namespace stats_eba_bot.BotWrapper
                             );
                         }
                     }
-                    else//TODO split
+                }else if (commandCode == CommandCode.RemovePlayer)
+                {
+                    var name = e.Message.Text.Replace("/removeplayer", "");
+                    name = name.TrimStart();
+                    if (!string.IsNullOrEmpty(name))
                     {
-                        var all = _cacheService.ListAllRecords();
-
-                        string allRecords = String.Join("\n",
-                            all.Select(a => $"{a.PlayerName} duel rating in cache {a.DuelRating}"));
-
-                        await _botClient.SendTextMessageAsync(
-                            chatId: e.Message.Chat,
-                            text: allRecords
-                        );
+                        var cached = _cacheService.GetFromCache(name);
+                        if (cached != null)
+                        {
+                            _cacheService.RemoveFromCache(cached);
+                            await ListAllPlayers(e);
+                        }
+                        else
+                        {
+                            await _botClient.SendTextMessageAsync(
+                                chatId: e.Message.Chat,
+                                text: $"{name} was not found in cache"
+                            );
+                        }
                     }
-                    
                 }
-
             }
-            //else
-            //{
-            //    await _botClient.SendTextMessageAsync(
-            //        chatId: e.Message.Chat,
-            //        text: "You said:\n" + e.Message.Text
-            //    );
-            //}
         }
 
-       
-       
+        private async Task UpdatePlayersCache(MessageEventArgs e = null)
+        {
+            var allPlayers = _cacheService.ListAllRecords();
+            allPlayers = allPlayers.Where(a => a.LastUpdatedDate < DateTime.UtcNow.AddMinutes(-5)).ToList();
+            foreach (var player in allPlayers)
+            {
+                int rating = await _qCApiService.GetPlayerRating(player.PlayerName);
+                if (rating > 0)
+                {
+                    _cacheService.SaveInCache(player.PlayerName, rating);
+                }
+            }
+            if(e != null) await ListAllPlayers(e); //reply to same chat
+        }
+
+
+      
+
+        private string FormatMessageLine(PlayerStatistic player, int position)
+        {
+            var playerUrl = $"https://stats.quake.com/profile/{player.PlayerName}";
+            var str = 
+                $"[{player.PlayerName}]({playerUrl}) {EmojiHelper.GeneratePositionEmoju(position)} Duel rating  is: {player.DuelRating}. Updated on {player.LastUpdatedDate.ToString()} \n";
+            return str;
+        }
+
+        private async Task ListAllPlayers(MessageEventArgs e)
+        {
+            var all = _cacheService.ListAllRecords();
+
+            //TODO format records method!
+            string allRecords = String.Join("",
+                all.Select(a => FormatMessageLine(a, all.IndexOf(a))));
+
+            if (!string.IsNullOrEmpty(allRecords))
+            {
+                await _botClient.SendTextMessageAsync(
+                    chatId: e.Message.Chat,
+                    text: allRecords,
+                    parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown
+                );
+            }
+            else
+            {
+                await _botClient.SendTextMessageAsync(
+                    chatId: e.Message.Chat,
+                    text: "Database is empty, add players first"
+                );
+            }
+          
+        }
+
+        private CommandCode ParseCommand(string message)
+        {
+            var lowercaseMessage = message.ToLower();
+            if (lowercaseMessage == "/updatecache")
+            {
+                return CommandCode.UpdateCache;
+            }
+
+            if (lowercaseMessage == "/stats")
+            {
+                return CommandCode.UpdateCache;
+            }
+            
+            if (lowercaseMessage.StartsWith("/addplayer"))
+            {
+                return CommandCode.AddPlayer;
+            }
+            if (lowercaseMessage.StartsWith("/removeplayer"))
+            {
+                return CommandCode.RemovePlayer;
+            }
+
+            return CommandCode.Unknown;
+        }
     }
 }
 

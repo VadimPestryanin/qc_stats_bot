@@ -25,22 +25,31 @@ namespace stats_eba_bot.Cache
                 _context.PlayerStatistic.Add(new PlayerStatistic()
                 {
                     PlayerName = key,
-                    DuelRating = value
+                    DuelRating = value,
+                    LastUpdatedDate = DateTime.UtcNow
                 });
             }
-            else
+            else 
             {
                 existing.DuelRating = value;
+                existing.LastUpdatedDate = DateTime.UtcNow;
             }
 
             _context.SaveChanges();
 
+        }
 
+        public void RemoveFromCache(PlayerStatistic stat)
+        {
+            if (stat != null)
+            {
+                _context.PlayerStatistic.Remove(stat);
+                _context.SaveChanges();
+            }
         }
 
         public PlayerStatistic GetFromCache(string key)
         {
-
             var stat = _context.PlayerStatistic.FirstOrDefault(p => p.PlayerName == key);
             if (stat != null)
             {
