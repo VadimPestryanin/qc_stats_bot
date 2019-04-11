@@ -22,6 +22,7 @@ namespace stats_eba_bot.BotWrapper
         UpdateCache,
         ListPlayers,
         RemovePlayer,
+        Help,
         Unknown
     }
 
@@ -59,6 +60,11 @@ namespace stats_eba_bot.BotWrapper
             {
                 var commandCode = ParseCommand(e.Message.Text);
                 
+                if (commandCode == CommandCode.Help)
+                {
+                    await PrintHelp(e); //reply to same chat
+                }
+
                 if (commandCode == CommandCode.ListPlayers)
                 {
                     await ListAllPlayers(e); //reply to same chat
@@ -93,7 +99,7 @@ namespace stats_eba_bot.BotWrapper
                     }
                 }else if (commandCode == CommandCode.RemovePlayer)
                 {
-                    var name = e.Message.Text.Replace("/removeplayer", "");
+                    var name = e.Message.Text.Replace("/removeplayer", ""); //DRY LOL
                     name = name.TrimStart();
                     if (!string.IsNullOrEmpty(name))
                     {
@@ -145,7 +151,7 @@ namespace stats_eba_bot.BotWrapper
         {
             var all = _cacheService.ListAllRecords();
 
-            //TODO format records method!
+          
             string allRecords = String.Join("",
                 all.Select(a => FormatMessageLine(a, all.IndexOf(a))));
 
@@ -167,27 +173,37 @@ namespace stats_eba_bot.BotWrapper
           
         }
 
+        private async Task PrintHelp(MessageEventArgs e)
+        {
+            var all = _cacheService.ListAllRecords();
+
+
+            string message = "available commands:\n" +
+                             "/updatecache - refresh current player cache \n" +
+                             "/stats - display saved players stats \n" +
+                             "/addplayer <name> - add new player in cache \n" +
+                             "/removeplayer <name> - remove player from cache";
+          
+            await _botClient.SendTextMessageAsync(
+                chatId: e.Message.Chat,
+                text: message,
+                parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown
+            );
+        }
+
         private CommandCode ParseCommand(string message)
         {
             var lowercaseMessage = message.ToLower();
-            if (lowercaseMessage == "/updatecache")
-            {
-                return CommandCode.UpdateCache;
-            }
-
-            if (lowercaseMessage == "/stats")
-            {
-                return CommandCode.UpdateCache;
-            }
+           
+            if (lowercaseMessage == "/updatecache") return CommandCode.UpdateCache;
             
-            if (lowercaseMessage.StartsWith("/addplayer"))
-            {
-                return CommandCode.AddPlayer;
-            }
-            if (lowercaseMessage.StartsWith("/removeplayer"))
-            {
-                return CommandCode.RemovePlayer;
-            }
+            if (lowercaseMessage == "/stats") return CommandCode.UpdateCache;
+            
+            if (lowercaseMessage.StartsWith("/addplayer")) return CommandCode.AddPlayer;
+            
+            if (lowercaseMessage.StartsWith("/removeplayer")) return CommandCode.RemovePlayer;
+
+            if (lowercaseMessage.StartsWith("/help")) return CommandCode.Help;
 
             return CommandCode.Unknown;
         }

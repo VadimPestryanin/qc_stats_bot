@@ -8,8 +8,6 @@ namespace stats_eba_bot.Helpers
 {
     public static class EmojiHelper
     {
-       
-
         public static string GeneratePositionEmoju(int position)
         {
             if (position == 0) return Emoji.Crown.ToString();
