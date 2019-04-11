@@ -23,6 +23,7 @@ namespace stats_eba_bot.DataContext
         public int DuelRating { get; set; }
 
         public DateTime LastUpdatedDate { get; set; }
+        public DateTime? LastDuelPlayed { get; set; }
 
         public PlayerStatistic()
         {

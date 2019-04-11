@@ -59,12 +59,15 @@ namespace stats_eba_bot.BotWrapper
             if (e.Message.Text != null)
             {
                 var commandCode = ParseCommand(e.Message.Text);
-                
+
+                if (commandCode != CommandCode.Unknown)
+                {
+                    Console.WriteLine(e.Message.Text);
+                }
                 if (commandCode == CommandCode.Help)
                 {
                     await PrintHelp(e); //reply to same chat
                 }
-
                 if (commandCode == CommandCode.ListPlayers)
                 {
                     await ListAllPlayers(e); //reply to same chat
