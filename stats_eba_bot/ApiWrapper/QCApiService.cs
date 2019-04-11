@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using QCStats;
@@ -7,6 +8,13 @@ using QCStats.Model.QC;
 
 namespace stats_eba_bot.ApiWrapper
 {
+    public class PlayerResponse
+    {
+        public string PlayerName { get; set; }
+        public int DuelRating { get; set; }
+        public DateTime? LastDuelPlayed { get; set; }
+    }
+
     public class QCApiService
     {
         private readonly QCStatsAPI _api;
@@ -19,15 +27,33 @@ namespace stats_eba_bot.ApiWrapper
         public async Task<int> GetPlayerRating(string playerName)
         {
             PlayerData player = await _api.Players.GetPlayerStatsAsync(playerName);
-            PlayerRating duelRating = null;
-            player.Ratings?.TryGetValue(QCStats.Enums.RankedGameMode.Duel, out duelRating);
-            if (duelRating != null)
-            {
-                return duelRating.Rating;
-            }
+           
 
             return 0;
-        } 
+        }
+
+        public async Task<PlayerResponse> GetPlayerInformation(string playerName)
+        {
+            PlayerData player = await _api.Players.GetPlayerStatsAsync(playerName);
+            if (player != null)
+            {
+                PlayerRating duelRating = null;
+                player.Ratings?.TryGetValue(QCStats.Enums.RankedGameMode.Duel, out duelRating);
+                if (duelRating != null)
+                {
+                    var lastMatch = player.RecentMatches.Where(m => m.GameMode == QCStats.Enums.GameMode.Duel)
+                        .OrderByDescending(m => m.PlayedDateTime).FirstOrDefault();
+                    return new PlayerResponse()
+                    {
+                        PlayerName = playerName,
+                        DuelRating = duelRating.Rating,
+                        LastDuelPlayed = lastMatch?.PlayedDateTime
+                    };
+                }
+                return null;
+            }
+            return null;
+        }
         
         public async Task<int> CheckPlayerStats(string playerName)
         {
@@ -37,7 +63,7 @@ namespace stats_eba_bot.ApiWrapper
             {
                 PlayerProfileStats stats = player.ProfileStats;
                 TimeSpan totalTimePlayed = stats.TimePlayed;
-
+              
                 Console.WriteLine();
                 Console.WriteLine("QC Stats", ConsoleColor.DarkRed);
                 Console.WriteLine($" ({playerName})", ConsoleColor.Cyan);
