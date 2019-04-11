@@ -20,7 +20,7 @@ namespace stats_eba_bot.ApiWrapper
         {
             PlayerData player = await _api.Players.GetPlayerStatsAsync(playerName);
             PlayerRating duelRating = null;
-            player.Ratings.TryGetValue(QCStats.Enums.RankedGameMode.Duel, out duelRating);
+            player.Ratings?.TryGetValue(QCStats.Enums.RankedGameMode.Duel, out duelRating);
             if (duelRating != null)
             {
                 return duelRating.Rating;
