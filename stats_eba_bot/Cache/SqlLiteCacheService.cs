@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using stats_eba_bot.ApiWrapper;
 
 namespace stats_eba_bot.Cache
 {
@@ -16,27 +17,30 @@ namespace stats_eba_bot.Cache
             _context = context;
         }
 
-        public void SaveInCache(string key, int value)
+        public void SaveInCache(string playerName, int duelRating, DateTime? lastDuelTime)
         {
-
-            var existing = GetFromCache(key);
+            var existing = GetFromCache(playerName);
             if (existing == null)
             {
                 _context.PlayerStatistic.Add(new PlayerStatistic()
                 {
-                    PlayerName = key,
-                    DuelRating = value,
+                    PlayerName = playerName,
+                    DuelRating = duelRating,
+                    LastDuelPlayed = lastDuelTime,
                     LastUpdatedDate = DateTime.UtcNow
                 });
             }
             else 
             {
-                existing.DuelRating = value;
+                existing.DuelRating = duelRating;
+                existing.LastDuelPlayed = lastDuelTime;
                 existing.LastUpdatedDate = DateTime.UtcNow;
             }
-
+        }
+        
+        public void CommitChanges()
+        {
             _context.SaveChanges();
-
         }
 
         public void RemoveFromCache(PlayerStatistic stat)
@@ -44,7 +48,6 @@ namespace stats_eba_bot.Cache
             if (stat != null)
             {
                 _context.PlayerStatistic.Remove(stat);
-                _context.SaveChanges();
             }
         }
 

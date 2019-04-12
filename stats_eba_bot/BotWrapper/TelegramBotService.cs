@@ -82,13 +82,13 @@ namespace stats_eba_bot.BotWrapper
                     name = name.TrimStart();
                     if (!string.IsNullOrEmpty(name))
                     {
-                        int rating = await _qCApiService.GetPlayerRating(name);
-                        if (rating > 0)
+                        var apiResponse = await _qCApiService.GetPlayerInformation(name);
+                        if (apiResponse != null && apiResponse.DuelRating > 0)
                         {
                             var cached = _cacheService.GetFromCache(name);
                             if (cached == null)
                             {
-                                _cacheService.SaveInCache(name,rating);
+                                _cacheService.SaveInCache(apiResponse.PlayerName,apiResponse.DuelRating,apiResponse.LastDuelPlayed);
                             }
                             await ListAllPlayers(e); //reply to same chat
                         }
@@ -100,7 +100,8 @@ namespace stats_eba_bot.BotWrapper
                             );
                         }
                     }
-                }else if (commandCode == CommandCode.RemovePlayer)
+                }
+                else if (commandCode == CommandCode.RemovePlayer)
                 {
                     var name = e.Message.Text.Replace("/removeplayer", ""); //DRY LOL
                     name = name.TrimStart();
@@ -110,7 +111,6 @@ namespace stats_eba_bot.BotWrapper
                         if (cached != null)
                         {
                             _cacheService.RemoveFromCache(cached);
-                            await ListAllPlayers(e);
                         }
                         else
                         {
@@ -121,6 +121,8 @@ namespace stats_eba_bot.BotWrapper
                         }
                     }
                 }
+
+                _cacheService.CommitChanges();
             }
         }
 
@@ -130,10 +132,10 @@ namespace stats_eba_bot.BotWrapper
             allPlayers = allPlayers.Where(a => a.LastUpdatedDate < DateTime.UtcNow.AddMinutes(-5)).ToList();
             foreach (var player in allPlayers)
             {
-                int rating = await _qCApiService.GetPlayerRating(player.PlayerName);
-                if (rating > 0)
+                var response = await _qCApiService.GetPlayerInformation(player.PlayerName);
+                if (response != null)
                 {
-                    _cacheService.SaveInCache(player.PlayerName, rating);
+                    _cacheService.SaveInCache(response.PlayerName,response.DuelRating,response.LastDuelPlayed);
                 }
             }
             if(e != null) await ListAllPlayers(e); //reply to same chat
@@ -146,7 +148,7 @@ namespace stats_eba_bot.BotWrapper
         {
             var playerUrl = $"https://stats.quake.com/profile/{player.PlayerName}";
             var str = 
-                $"[{player.PlayerName}]({playerUrl}) {EmojiHelper.GeneratePositionEmoju(position)} Duel rating  is: {player.DuelRating}. Updated on {player.LastUpdatedDate.ToString()} \n";
+                $"[{player.PlayerName}]({playerUrl}) {EmojiHelper.GeneratePositionEmoju(position)} Duel rating  is: {player.DuelRating}. Last duel played: {player.LastDuelPlayed?.ToShortDateString()} \n";
             return str;
         }
 

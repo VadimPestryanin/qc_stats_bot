@@ -8,7 +8,7 @@ using QCStats.Model.QC;
 
 namespace stats_eba_bot.ApiWrapper
 {
-    public class PlayerResponse
+    public class PlayerDataContract
     {
         public string PlayerName { get; set; }
         public int DuelRating { get; set; }
@@ -24,15 +24,7 @@ namespace stats_eba_bot.ApiWrapper
             _api = api;
         }
 
-        public async Task<int> GetPlayerRating(string playerName)
-        {
-            PlayerData player = await _api.Players.GetPlayerStatsAsync(playerName);
-           
-
-            return 0;
-        }
-
-        public async Task<PlayerResponse> GetPlayerInformation(string playerName)
+        public async Task<PlayerDataContract> GetPlayerInformation(string playerName)
         {
             PlayerData player = await _api.Players.GetPlayerStatsAsync(playerName);
             if (player != null)
@@ -41,13 +33,11 @@ namespace stats_eba_bot.ApiWrapper
                 player.Ratings?.TryGetValue(QCStats.Enums.RankedGameMode.Duel, out duelRating);
                 if (duelRating != null)
                 {
-                    var lastMatch = player.RecentMatches.Where(m => m.GameMode == QCStats.Enums.GameMode.Duel)
-                        .OrderByDescending(m => m.PlayedDateTime).FirstOrDefault();
-                    return new PlayerResponse()
+                    return new PlayerDataContract()
                     {
                         PlayerName = playerName,
                         DuelRating = duelRating.Rating,
-                        LastDuelPlayed = lastMatch?.PlayedDateTime
+                        LastDuelPlayed = duelRating.LastUpdated
                     };
                 }
                 return null;
